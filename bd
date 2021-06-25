@@ -1,0 +1,117 @@
+create table cliente(
+	id_cliente serial primary key,
+	numero_documento varchar(11) not null,
+	tipo_documneto char(1) not null,
+	nombre_completo varchar(60) not null,
+	direccion varchar(80) null,
+	estado boolean not null
+);
+create table cargo(
+	id_cargo serial primary key,
+	nombre varchar(20) not null
+)
+create table empleado(
+	id_empleado serial primary key,
+	dni varchar(8) not null,
+	nombre_completo varchar(60) not null,
+	direccion varchar(80) not null,
+	fecha_nacimiento date not null,
+	celular varchar(9) not null,
+	estado boolean not null,
+	fk_cargo int not null,
+	
+	FOREIGN KEY (fk_cargo) REFERENCES cargo(id_cargo)
+);
+create table carta(
+	id_carta serial primary key,
+	nombre varchar(30) not null,
+	estado boolean not null
+);
+insert into carta (nombre, estado) 
+values ('Comida rápida', TRUE),('Platos a la carta', TRUE);
+
+create table plato(
+	id_plato serial primary key,
+	nombre varchar(50) not null,
+	directorio_imagen varchar(100) not null,
+	estado boolean not null,
+	costo decimal(3,2) not null,
+	precio decimal(3,2) not null,
+	fk_carta int not null,
+	
+	FOREIGN KEY (fk_carta) REFERENCES carta(id_carta)
+);
+
+insert into plato (nombre, directorio_imagen,estado,costo, precio,fk_carta) 
+values ('Pollo a la braza', '/media_platos/pollo.jpg',TRUE, 4,6.5,1),
+('Hamburguesa de pollo', '/media_platos/amburguesapollo.jpg',TRUE, 2,4.5,1),
+('Hamburguesa de carne', '/media_platos/amburguesacarne.jpg',TRUE, 3,5,1),
+('Hamburguesa de queso', '/media_platos/hamburguesaqueso.jpg',TRUE, 5,7.5,1);
+
+create table comanda(
+	id_comanda serial primary key,
+	fecha date not null,
+	hora time not null,
+	estado char(2) not null, --g,ep,p
+	fk_cliente int not null,
+	fk_chef_a_cargo int null,
+	
+	FOREIGN KEY (fk_cliente) REFERENCES cliente(id_cliente),
+	FOREIGN KEY (fk_chef_a_cargo) REFERENCES empleado(id_empleado)
+);
+
+create table detalle_comanda(
+	id_detalle_comanda serial primary key,
+	cantidad int not null,
+	costo decimal(3,2) not null,
+	precio_vendido decimal(3,2) not null,
+	fk_plato int not null,
+	fk_comanda int not null,
+	
+	FOREIGN KEY (fk_plato) REFERENCES plato(id_plato),
+	FOREIGN KEY (fk_comanda) REFERENCES comanda(id_comanda)
+);
+
+create table comprobante(
+	id_comprobante serial primary key,
+	serie char(4) not null,
+	correlativo int not null,
+	tipo char(1) not null,
+	total_gravadas numeric(10,2) not null,
+	total_igv numeric(10,2) not null,
+	importe_total numeric(10,2) not null,
+	fk_comanda int not null unique,
+	FOREIGN KEY (fk_comanda) REFERENCES comanda(id_comanda) 
+);
+
+CREATE OR REPLACE FUNCTION
+generarNumeroComprobante(tipoC char(1)) RETURNS varchar(12)
+AS
+$$
+Declare --Declaración de Variables
+correlat int; 
+num_registros int;
+serieT varchar(12);
+Begin --Instrucción de Actualización
+    select count(*) into num_registros from comprobante where tipo=tipoC;
+
+    if num_registros!=0 then
+        select max(correlativo)+1 into correlat from comprobante where tipo=tipoC;
+		if tipoC='B' then
+			serieT='B001-'||correlat;
+		else
+			serieT='F001-'||correlat;
+		end if;
+    else
+        if tipoC='B' then
+			serieT='B001-1';
+		else
+			serieT='F001-1';
+		end if;
+    end if;
+    return serieT;
+End;
+$$ language 'plpgsql';
+
+select * from generarNumeroComprobante('F');
+
